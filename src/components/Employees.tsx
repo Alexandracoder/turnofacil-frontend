@@ -68,7 +68,7 @@ export default function Employees() {
       setShowForm(false);
       loadEmployees();
     } catch (err) {
-      setError('Failed to create employee');
+      setError('Error al crear el empleado. Asegúrate de que el backend esté corriendo en localhost:8080');
       console.error(err);
     } finally {
       setSubmitting(false);
@@ -76,13 +76,13 @@ export default function Employees() {
   };
 
   const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    if (!confirm(`¿Seguro quieres borrarlo?${name}?`)) return;
 
     try {
       await userApi.deleteUser(id);
       loadEmployees();
     } catch (err) {
-      setError('Failed to delete employee');
+      setError('Error al borrar el empleado');
       console.error(err);
     }
   };

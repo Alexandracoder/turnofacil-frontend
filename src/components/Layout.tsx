@@ -1,4 +1,4 @@
-import { Users, Calendar, Menu, X } from 'lucide-react'
+import { Users, Calendar, Menu, X, CalendarClock } from 'lucide-react'
 import { useState } from 'react'
 
 interface LayoutProps {
@@ -21,8 +21,8 @@ export default function Layout({
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
-                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-white" />
+                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center">
+                  <CalendarClock className="h-6 w-6 text-white" />
                 </div>
                 <span className="ml-3 text-xl font-bold text-slate-800">
                   TurnoFácil

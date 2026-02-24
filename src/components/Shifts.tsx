@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Calendar, Clock, Plus, User, Loader2, Trash2 } from 'lucide-react'
+import {
+  CalendarDays,
+  Clock,
+  Plus,
+  User,
+  Loader2,
+  Trash2,
+  CalendarClock,
+  Calendar,
+} from 'lucide-react'
 import { shiftApi, userApi } from '../services/api'
 import type { ShiftResponseDTO, UserResponseDTO } from '../types/api'
 
@@ -91,44 +100,42 @@ export default function Shifts() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este turno?')) {
-      try {
-        await shiftApi.deleteShift(id)
-
-        setShifts(shifts.filter(s => s.id !== id))
-      } catch (err) {
-        alert('Error al borrar el turno')
-      }
+const handleDelete = async (id: number) => {
+  if (confirm('¿Estás seguro de que quieres eliminar este turno?')) {
+    console.log('Intentando borrar el turno con ID:', id) // <-- Para ver si el ID es correcto
+    try {
+      await shiftApi.deleteShift(id)
+      setShifts(shifts.filter(s => s.id !== id))
+      console.log('Turno borrado con éxito en el Front')
+    } catch (err) {
+      console.error('ERROR DETECTADO:', err) // <-- Aquí verás el error real
+      alert('Error al borrar el turno: ' + err)
     }
   }
+}
+
 
 const calculateDuration = (start: string, end: string) => {
   const startDate = new Date(start)
   const endDate = new Date(end)
 
-  // Calculamos la diferencia en milisegundos
+  
   const diffMs = Math.abs(endDate.getTime() - startDate.getTime())
 
   if (isNaN(diffMs)) return '0 min'
 
-  // Convertimos a minutos totales
   const totalMinutes = Math.floor(diffMs / 60000)
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
 
-  // Escenario 1: Solo minutos (menos de una hora)
   if (hours === 0) {
     return `${minutes} min`
   }
 
-  // Escenario 2: Horas exactas (sin minutos)
   if (minutes === 0) {
     return `${hours} ${hours === 1 ? 'hora' : 'horas'}`
   }
 
-  // Escenario 3: Horas y minutos (ej: 2h 06min)
-  // Usamos padStart para que los minutos siempre tengan dos cifras (06 en vez de 6)
   const formattedMinutes = minutes.toString().padStart(2, '0')
   return `${hours}h ${formattedMinutes}min`
 }
@@ -222,7 +229,7 @@ const calculateDuration = (start: string, end: string) => {
                   }
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value={0}>Select an employee</option>
+                  <option value={0}>Elegir profesional</option>
                   {employees.map(emp => (
                     <option key={emp.id} value={emp.id}>
                       {emp.fullName} - {ROLE_LABELS[emp.role] || emp.role}
@@ -301,7 +308,7 @@ const calculateDuration = (start: string, end: string) => {
 
       <div className="space-y-3">
         {shifts.map(shift => {
-          const styles = getShiftStyles(shift.startTime, shift.endTime);
+          const styles = getShiftStyles(shift.startTime, shift.endTime)
           return (
             <div
               key={shift.id}
@@ -337,14 +344,20 @@ const calculateDuration = (start: string, end: string) => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Bloque de Inicio */}
                     <div className="flex items-center text-sm text-slate-600">
-                      <Calendar className="h-4 w-4 mr-2" />
+                      <CalendarClock className="h-5 w-5 mr-2 text-blue-500" />{' '}
+                      {/* Añadí un color opcional */}
                       <span>
-                        <strong>Inicio:</strong> {formatDateTime(shift.startTime)}
+                        <strong>Inicio:</strong>{' '}
+                        {formatDateTime(shift.startTime)}
                       </span>
                     </div>
+
+                    {/* Bloque de Fin */}
                     <div className="flex items-center text-sm text-slate-600">
-                      <Calendar className="h-4 w-4 mr-2" />
+                      <Clock className="h-5 w-5 mr-2 text-slate-400" />{' '}
+                      {/* Aquí podrías usar Clock para variar */}
                       <span>
                         <strong>Fin:</strong> {formatDateTime(shift.endTime)}
                       </span>
@@ -352,7 +365,9 @@ const calculateDuration = (start: string, end: string) => {
                   </div>
                 </div>
                 <div className="...">
-                  <p className={`text-xs font-medium uppercase tracking-wider ${styles.badge}`}>
+                  <p
+                    className={`text-xs font-medium uppercase tracking-wider ${styles.badge}`}
+                  >
                     {styles.label}
                   </p>
                   <p className="text-base font-bold text-green-800">
@@ -364,9 +379,9 @@ const calculateDuration = (start: string, end: string) => {
                 </div>
               </div>
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
+  )
 }
