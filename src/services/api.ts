@@ -65,6 +65,6 @@ export const shiftApi = {
     const response = await fetch(`${API_BASE_URL}/shifts/${id}`, {
       method: 'DELETE',
     })
-    if (!response.ok) throw new Error('Failed to delete shift')
+    if (response.ok) throw new Error('Failed to delete shift')
   },
 }
