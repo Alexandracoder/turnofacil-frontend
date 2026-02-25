@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import {
-  CalendarDays,
   Clock,
   Plus,
   User,
@@ -8,6 +7,7 @@ import {
   Trash2,
   CalendarClock,
   Calendar,
+  CalendarDays,
 } from 'lucide-react'
 import { shiftApi, userApi } from '../services/api'
 import type { ShiftResponseDTO, UserResponseDTO } from '../types/api'
@@ -22,8 +22,11 @@ const ROLE_LABELS: Record<string, string> = {
 export default function Shifts() {
   const [shifts, setShifts] = useState<ShiftResponseDTO[]>([])
   const [employees, setEmployees] = useState<UserResponseDTO[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     date: '',
@@ -31,9 +34,6 @@ export default function Shifts() {
     endTime: '',
     employeeId: 0,
   })
-
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -50,10 +50,7 @@ export default function Shifts() {
       setShifts(shiftsData)
       setEmployees(employeesData)
     } catch (err) {
-      setError(
-        'Failed to load data. Make sure the backend is running on localhost:8080',
-      )
-      console.error(err)
+      setError('Error al conectar con el servidor. Verifica el Backend.')
     } finally {
       setLoading(false)
     }
@@ -61,87 +58,48 @@ export default function Shifts() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const selectedDate = new Date(formData.date)
-
-    if (selectedDate < today) {
+    if (new Date(formData.date) < today) {
       setError('La fecha no puede ser anterior a hoy')
       return
     }
-
     if (formData.endTime <= formData.startTime) {
       setError('La hora de fin debe ser posterior a la de inicio')
       return
     }
 
     setSubmitting(true)
-    setError(null)
-
     try {
       const payload = {
         employeeId: formData.employeeId,
         startTime: `${formData.date}T${formData.startTime}:00`,
         endTime: `${formData.date}T${formData.endTime}:00`,
       }
-
       await shiftApi.createShift(payload as any)
-
       setFormData({ date: '', startTime: '', endTime: '', employeeId: 0 })
       setShowForm(false)
       loadData()
     } catch (err: any) {
-      const msg =
-        err.response?.data?.message || 'Error del servidor al crear el turno'
-      setError(msg)
+      setError(err.message || 'Error al crear el turno')
     } finally {
       setSubmitting(false)
     }
   }
 
-const handleDelete = async (id: number) => {
-  if (confirm('¿Estás seguro de que quieres eliminar este turno?')) {
-    console.log('Intentando borrar el turno con ID:', id) // <-- Para ver si el ID es correcto
-    try {
-      await shiftApi.deleteShift(id)
-      setShifts(shifts.filter(s => s.id !== id))
-      console.log('Turno borrado con éxito en el Front')
-    } catch (err) {
-      console.error('ERROR DETECTADO:', err) // <-- Aquí verás el error real
-      alert('Error al borrar el turno: ' + err)
+  const handleDelete = async (id: number) => {
+    if (confirm('¿Estás seguro de que quieres eliminar este turno?')) {
+      try {
+        await shiftApi.deleteShift(id)
+        setShifts(shifts.filter(s => s.id !== id))
+      } catch (err) {
+        alert('Error al borrar el turno')
+      }
     }
   }
-}
 
-
-const calculateDuration = (start: string, end: string) => {
-  const startDate = new Date(start)
-  const endDate = new Date(end)
-
-  
-  const diffMs = Math.abs(endDate.getTime() - startDate.getTime())
-
-  if (isNaN(diffMs)) return '0 min'
-
-  const totalMinutes = Math.floor(diffMs / 60000)
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-
-  if (hours === 0) {
-    return `${minutes} min`
-  }
-
-  if (minutes === 0) {
-    return `${hours} ${hours === 1 ? 'hora' : 'horas'}`
-  }
-
-  const formattedMinutes = minutes.toString().padStart(2, '0')
-  return `${hours}h ${formattedMinutes}min`
-}
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleString('es-ES', {
+    return new Date(dateString).toLocaleString('es-ES', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -155,38 +113,34 @@ const calculateDuration = (start: string, end: string) => {
     const now = new Date()
     const start = new Date(startTime)
     const end = new Date(endTime)
-
-    if (now > end) {
+    if (now > end)
       return {
         card: 'bg-slate-50 border-slate-200 opacity-75',
         badge: 'bg-slate-200 text-slate-600',
         label: 'Finalizado',
       }
-    } else if (now >= start && now <= end) {
+    if (now >= start && now <= end)
       return {
         card: 'bg-green-50 border-green-300 ring-1 ring-green-400',
         badge: 'bg-green-200 text-green-700',
         label: 'En directo',
       }
-    } else {
-      return {
-        card: 'bg-white border-blue-200 shadow-sm',
-        badge: 'bg-blue-100 text-blue-700',
-        label: 'Programado',
-      }
+    return {
+      card: 'bg-white border-blue-200 shadow-sm',
+      badge: 'bg-blue-100 text-blue-700',
+      label: 'Programado',
     }
   }
 
-  if (loading) {
+  if (loading)
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
       </div>
     )
-  }
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Turnos</h1>
@@ -194,18 +148,82 @@ const calculateDuration = (start: string, end: string) => {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors shadow-sm"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-sm transition-colors"
         >
           <Plus className="h-5 w-5" />
           <span>Añadir Turno</span>
         </button>
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+          <div className="h-12 w-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+            <Clock className="h-6 w-6 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Horas Totales</p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {shifts
+                .reduce((acc, s) => acc + (s.totalHours || 0), 0)
+                .toFixed(1)}{' '}
+              hrs
+            </h3>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+          <div className="h-12 w-12 bg-amber-100 rounded-xl flex items-center justify-center">
+            <CalendarClock className="h-6 w-6 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">En Directo</p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {
+                shifts.filter(s => {
+                  const now = new Date()
+                  return (
+                    now >= new Date(s.startTime) && now <= new Date(s.endTime)
+                  )
+                }).length
+              }
+            </h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+          <div className="h-12 w-12 bg-blue-100 rounded-xl flex items-center justify-center">
+            <CalendarDays className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Programados</p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {shifts.filter(s => new Date(s.startTime) > new Date()).length}
+            </h3>
+          </div>
+        </div>
+      </div>
+
+      {error && <div className="..."> {error} </div>}
+      {showForm && <div className="..."> ... </div>}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
           {error}
         </div>
       )}
+
+      <div className="mb-6">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <User className="h-5 w-5 text-slate-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar por nombre de empleado..."
+            className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-xl leading-5 bg-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm transition-all"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
 
       {showForm && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
@@ -216,7 +234,7 @@ const calculateDuration = (start: string, end: string) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Empleado <span className="text-red-500">*</span>
+                  Empleado *
                 </label>
                 <select
                   required
@@ -237,10 +255,9 @@ const calculateDuration = (start: string, end: string) => {
                   ))}
                 </select>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Fecha <span className="text-red-500">*</span>
+                  Fecha *
                 </label>
                 <input
                   type="date"
@@ -249,15 +266,14 @@ const calculateDuration = (start: string, end: string) => {
                   onChange={e =>
                     setFormData({ ...formData, date: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                 />
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Inicio <span className="text-red-500">*</span>
+                  Inicio *
                 </label>
                 <input
                   type="time"
@@ -266,13 +282,12 @@ const calculateDuration = (start: string, end: string) => {
                   onChange={e =>
                     setFormData({ ...formData, startTime: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Fin <span className="text-red-500">*</span>
+                  Fin *
                 </label>
                 <input
                   type="time"
@@ -281,11 +296,10 @@ const calculateDuration = (start: string, end: string) => {
                   onChange={e =>
                     setFormData({ ...formData, endTime: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                 />
               </div>
             </div>
-
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
@@ -299,88 +313,90 @@ const calculateDuration = (start: string, end: string) => {
                 disabled={submitting || formData.employeeId === 0}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg disabled:opacity-50"
               >
-                {submitting ? 'Creating...' : 'Crear Turno'}
+                {submitting ? 'Creando...' : 'Crear Turno'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="space-y-3">
-        {shifts.map(shift => {
-          const styles = getShiftStyles(shift.startTime, shift.endTime)
-          return (
-            <div
-              key={shift.id}
-              className={`rounded-xl shadow-sm border p-5 relative ${styles.card}`}
-            >
-              <button
-                onClick={() => handleDelete(shift.id)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors p-1"
-                title="Eliminar turno"
+      <div className="space-y-4">
+        {shifts
+          .filter(shift =>
+            
+            (shift.employeeName || '')
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()),
+          )
+          .map(shift => {
+            const styles = getShiftStyles(shift.startTime, shift.endTime)
+            return (
+              <div
+                key={shift.id}
+                className={`rounded-xl border p-5 relative transition-all ${styles.card}`}
               >
-                <Trash2 className="h-5 w-5" />
-              </button>
+                <button
+                  onClick={() => handleDelete(shift.id)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-red-500 p-1"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
 
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                      <User className="h-5 w-5 text-white" />
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center space-x-4">
+                    <div className="h-12 w-12 bg-blue-500 rounded-lg flex items-center justify-center text-white">
+                      <User className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-slate-800">
+                      <h3 className="text-lg font-bold text-slate-800">
                         {shift.employeeName || 'Empleado'}
                       </h3>
-
                       <p className="text-sm font-medium text-blue-600">
                         {ROLE_LABELS[shift.employeeRole] || shift.employeeRole}
                       </p>
-
-                      <p className="text-sm text-slate-500">
-                        ID: {shift.employeeId}
-                      </p>
+                      <div className="mt-1 flex items-center space-x-2">
+                        <span className="text-xs text-slate-500">
+                          ID: {shift.employeeId}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {shift.totalHours
+                            ? `${shift.totalHours.toFixed(1)} hrs`
+                            : '0 hrs'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Bloque de Inicio */}
-                    <div className="flex items-center text-sm text-slate-600">
-                      <CalendarClock className="h-5 w-5 mr-2 text-blue-500" />{' '}
-                      {/* Añadí un color opcional */}
-                      <span>
-                        <strong>Inicio:</strong>{' '}
-                        {formatDateTime(shift.startTime)}
-                      </span>
-                    </div>
-
-                    {/* Bloque de Fin */}
-                    <div className="flex items-center text-sm text-slate-600">
-                      <Clock className="h-5 w-5 mr-2 text-slate-400" />{' '}
-                      {/* Aquí podrías usar Clock para variar */}
-                      <span>
-                        <strong>Fin:</strong> {formatDateTime(shift.endTime)}
-                      </span>
+                  <div className="flex-1 max-w-md">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex items-center text-sm text-slate-600">
+                        <CalendarClock className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>
+                          <strong>Inicio:</strong>{' '}
+                          {formatDateTime(shift.startTime)}
+                        </span>
+                      </div>
+                      <div className="flex items-center text-sm text-slate-600">
+                        <Calendar className="h-4 w-4 mr-2 text-slate-400" />
+                        <span>
+                          <strong>Fin:</strong> {formatDateTime(shift.endTime)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="...">
-                  <p
-                    className={`text-xs font-medium uppercase tracking-wider ${styles.badge}`}
-                  >
-                    {styles.label}
-                  </p>
-                  <p className="text-base font-bold text-green-800">
-                    {calculateDuration(shift.startTime, shift.endTime)}{' '}
-                    {parseFloat(
-                      calculateDuration(shift.startTime, shift.endTime),
-                    ) === 1}
-                  </p>
+
+                  <div className="text-right">
+                    <span
+                      className={`text-xs font-bold uppercase px-3 py-1 rounded-full ${styles.badge}`}
+                    >
+                      {styles.label}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
       </div>
     </div>
   )

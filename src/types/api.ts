@@ -21,6 +21,7 @@ export interface ShiftResponseDTO {
   id: number;
   startTime: string;
   endTime: string;
+  totalHours: number;
   employeeId: number;
   employeeName?: string;
 }
