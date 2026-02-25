@@ -7,6 +7,7 @@ import {
   Trash2,
   CalendarClock,
   Calendar,
+  CalendarDays,
 } from 'lucide-react'
 import { shiftApi, userApi } from '../services/api'
 import type { ShiftResponseDTO, UserResponseDTO } from '../types/api'
@@ -21,6 +22,7 @@ const ROLE_LABELS: Record<string, string> = {
 export default function Shifts() {
   const [shifts, setShifts] = useState<ShiftResponseDTO[]>([])
   const [employees, setEmployees] = useState<UserResponseDTO[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -152,12 +154,76 @@ export default function Shifts() {
           <span>Añadir Turno</span>
         </button>
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+          <div className="h-12 w-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+            <Clock className="h-6 w-6 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Horas Totales</p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {shifts
+                .reduce((acc, s) => acc + (s.totalHours || 0), 0)
+                .toFixed(1)}{' '}
+              hrs
+            </h3>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+          <div className="h-12 w-12 bg-amber-100 rounded-xl flex items-center justify-center">
+            <CalendarClock className="h-6 w-6 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">En Directo</p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {
+                shifts.filter(s => {
+                  const now = new Date()
+                  return (
+                    now >= new Date(s.startTime) && now <= new Date(s.endTime)
+                  )
+                }).length
+              }
+            </h3>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+          <div className="h-12 w-12 bg-blue-100 rounded-xl flex items-center justify-center">
+            <CalendarDays className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500">Programados</p>
+            <h3 className="text-2xl font-bold text-slate-800">
+              {shifts.filter(s => new Date(s.startTime) > new Date()).length}
+            </h3>
+          </div>
+        </div>
+      </div>
+
+      {error && <div className="..."> {error} </div>}
+      {showForm && <div className="..."> ... </div>}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
           {error}
         </div>
       )}
+
+      <div className="mb-6">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <User className="h-5 w-5 text-slate-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar por nombre de empleado..."
+            className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-xl leading-5 bg-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm transition-all"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
 
       {showForm && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
@@ -255,75 +321,82 @@ export default function Shifts() {
       )}
 
       <div className="space-y-4">
-        {shifts.map(shift => {
-          const styles = getShiftStyles(shift.startTime, shift.endTime)
-          return (
-            <div
-              key={shift.id}
-              className={`rounded-xl border p-5 relative transition-all ${styles.card}`}
-            >
-              <button
-                onClick={() => handleDelete(shift.id)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-red-500 p-1"
+        {shifts
+          .filter(shift =>
+            
+            (shift.employeeName || '')
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()),
+          )
+          .map(shift => {
+            const styles = getShiftStyles(shift.startTime, shift.endTime)
+            return (
+              <div
+                key={shift.id}
+                className={`rounded-xl border p-5 relative transition-all ${styles.card}`}
               >
-                <Trash2 className="h-5 w-5" />
-              </button>
+                <button
+                  onClick={() => handleDelete(shift.id)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-red-500 p-1"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
 
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center space-x-4">
-                  <div className="h-12 w-12 bg-blue-500 rounded-lg flex items-center justify-center text-white">
-                    <User className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-800">
-                      {shift.employeeName || 'Empleado'}
-                    </h3>
-                    <p className="text-sm font-medium text-blue-600">
-                      {ROLE_LABELS[shift.employeeRole] || shift.employeeRole}
-                    </p>
-                    <div className="mt-1 flex items-center space-x-2">
-                      <span className="text-xs text-slate-500">
-                        ID: {shift.employeeId}
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {shift.totalHours
-                          ? `${shift.totalHours.toFixed(1)} hrs`
-                          : '0 hrs'}
-                      </span>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center space-x-4">
+                    <div className="h-12 w-12 bg-blue-500 rounded-lg flex items-center justify-center text-white">
+                      <User className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-800">
+                        {shift.employeeName || 'Empleado'}
+                      </h3>
+                      <p className="text-sm font-medium text-blue-600">
+                        {ROLE_LABELS[shift.employeeRole] || shift.employeeRole}
+                      </p>
+                      <div className="mt-1 flex items-center space-x-2">
+                        <span className="text-xs text-slate-500">
+                          ID: {shift.employeeId}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {shift.totalHours
+                            ? `${shift.totalHours.toFixed(1)} hrs`
+                            : '0 hrs'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex-1 max-w-md">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex items-center text-sm text-slate-600">
-                      <CalendarClock className="h-4 w-4 mr-2 text-blue-500" />
-                      <span>
-                        <strong>Inicio:</strong>{' '}
-                        {formatDateTime(shift.startTime)}
-                      </span>
-                    </div>
-                    <div className="flex items-center text-sm text-slate-600">
-                      <Calendar className="h-4 w-4 mr-2 text-slate-400" />
-                      <span>
-                        <strong>Fin:</strong> {formatDateTime(shift.endTime)}
-                      </span>
+                  <div className="flex-1 max-w-md">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex items-center text-sm text-slate-600">
+                        <CalendarClock className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>
+                          <strong>Inicio:</strong>{' '}
+                          {formatDateTime(shift.startTime)}
+                        </span>
+                      </div>
+                      <div className="flex items-center text-sm text-slate-600">
+                        <Calendar className="h-4 w-4 mr-2 text-slate-400" />
+                        <span>
+                          <strong>Fin:</strong> {formatDateTime(shift.endTime)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="text-right">
-                  <span
-                    className={`text-xs font-bold uppercase px-3 py-1 rounded-full ${styles.badge}`}
-                  >
-                    {styles.label}
-                  </span>
+                  <div className="text-right">
+                    <span
+                      className={`text-xs font-bold uppercase px-3 py-1 rounded-full ${styles.badge}`}
+                    >
+                      {styles.label}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
       </div>
     </div>
   )
